@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="59caf285-71d8-435f-bdf0-4c9e82fa6f44" name="CloudWays DEV">
+        <fileTransfer rootFolder="/public_html" accessType="SFTP" host="46.101.78.58" port="22" sshConfigId="92e5a58a-86d7-4c6c-968e-9c9d045a4120" sshConfig="serhii.antifieiev@46.101.78.58:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

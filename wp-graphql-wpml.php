@@ -20,6 +20,13 @@ use WPGraphQL\Data\Connection\AbstractConnectionResolver;
  * @license     GPL-3
  */
 
+add_action('graphql_init', 'wpgraphqlwpml_action_init');
+
+add_filter('graphql_post_object_connection_query_args', 'wpgraphqlwpml_disable_wpml', 100, 5);
+add_filter('graphql_post_object_connection_query_args', 'wpgraphqlwpml_handle_language_filter_request', 110, 5);
+add_filter('graphql_term_object_connection_query_args', 'wpgraphqlwpml_handle_language_filter_request', 110, 5);
+add_filter('graphql_comment_object_connection_query_args', 'wpgraphqlwpml_handle_language_filter_request', 110, 5);
+add_filter('graphql_RootQuery_fields', 'wpgraphqlwpml_root_query_node_by_uri_fields', 10);
 
 function wpgraphqlwpml_is_graphql_request()
 {
@@ -31,13 +38,11 @@ function wpgraphqlwpml_is_graphql_request()
     return is_graphql_http_request();
 }
 
-
 function wpgraphqlwpml_disable_wpml($query_args, $source, $args, $context, $info)
 {
     $query_args['suppress_wpml_where_and_join_filter'] = true;
     return $query_args;
 }
-add_filter('graphql_post_object_connection_query_args', 'wpgraphqlwpml_disable_wpml', 100, 5);
 
 function wpgraphqlwpml_handle_language_filter_request($query_args, $source, $args, $context, $info)
 {
@@ -56,9 +61,28 @@ function wpgraphqlwpml_handle_language_filter_request($query_args, $source, $arg
 
   return $query_args;
 }
-add_filter('graphql_post_object_connection_query_args', 'wpgraphqlwpml_handle_language_filter_request', 110, 5);
-add_filter('graphql_term_object_connection_query_args', 'wpgraphqlwpml_handle_language_filter_request', 110, 5);
-add_filter('graphql_comment_object_connection_query_args', 'wpgraphqlwpml_handle_language_filter_request', 110, 5);
+
+function wpgraphqlwpml_root_query_node_by_uri_fields($fields)
+{
+    if ($fields['nodeByUri'] && $fields['nodeByUri']['args']) {
+        $fields['nodeByUri']['args']['wpmlLanguage'] = [
+            'type' => 'String',
+            'description' => __('WPML language', 'wp-graphql-wpml'),
+        ];
+
+        $fields['nodeByUri']['resolve'] = function ( $root, $args, \WPGraphQL\AppContext $context ) {
+            global $sitepress;
+
+            if ($args['wpmlLanguage']) {
+                $sitepress->switch_lang($args['wpmlLanguage']);
+            }
+
+            return ! empty( $args['uri'] ) ? $context->node_resolver->resolve_uri( $args['uri'] ) : null;
+        };
+    }
+
+    return $fields;
+}
 
 function wpgraphqlwpml_add_post_type_fields(\WP_Post_Type $post_type_object)
 {
@@ -457,7 +481,7 @@ function wpgraphqlwpml_action_graphql_register_language_where_filters()
         'RootQueryToCategoryConnectionWhereArgs',
         'RootQueryToCommentConnectionWhereArgs',
     ];
-    
+
     $language_field_params = [
         'wpmlLanguage' => [
             'type' => 'String',
@@ -467,13 +491,13 @@ function wpgraphqlwpml_action_graphql_register_language_where_filters()
 
     //Get all new custom post types that are available in the GraphQL schema
     $gql_valid_custom_post_types = get_post_types([
-        'show_in_graphql' => true, 
+        'show_in_graphql' => true,
         '_builtin' => false
     ], 'objects');
 
     //Get all new taxonomies post types that are available in the GraphQL schema
     $gql_valid_taxonomies = get_taxonomies([
-        'show_in_graphql' => true, 
+        'show_in_graphql' => true,
         '_builtin' => false
     ], 'objects');
 
@@ -481,7 +505,7 @@ function wpgraphqlwpml_action_graphql_register_language_where_filters()
     foreach ($gql_valid_custom_post_types as $custom_post_type) {
         $connections_where_name[] = 'RootQueryTo' . ucwords($custom_post_type->graphql_single_name) . 'ConnectionWhereArgs';
     }
-    
+
     //Add the custom taxonomies to the connections that require the language filter option
     foreach ($gql_valid_taxonomies as $custom_taxonomy) {
         $connections_where_name[] = 'RootQueryTo' . ucwords($custom_taxonomy->graphql_single_name) . 'ConnectionWhereArgs';
@@ -851,6 +875,3 @@ function wpgraphqlwpml_action_init()
         2
     );
 }
-
-
-add_action('graphql_init', 'wpgraphqlwpml_action_init');
